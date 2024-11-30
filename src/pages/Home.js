@@ -67,7 +67,7 @@ function Home() {
             </div>
         </div>
         <footer>
-            <h4>Built by <a href="https://github.com/khushnam-chauhan/codeArena.git">CodeArena</a> </h4>
+            <h4>Built by <a href="https://github.com/khushnam-chauhan/CodeArena.git">CodeArena</a> </h4>
         </footer>
     </div>
     </div>

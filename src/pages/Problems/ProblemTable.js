@@ -10,12 +10,14 @@ const ProblemTable = () => {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDifficulty, setSelectedDifficulty] = useState("");
+  const apiUrl = process.env.REACT_APP_API_URL;
+  console.log(apiUrl);  // Should print http://localhost:5000/api
 
   useEffect(() => {
     const fetchProblems = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await axios.get("http://localhost:5000/api/problems", {
+        const response = await axios.get(`https://codearena-backend-ffqp.onrender.com/api/problems`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

@@ -11,10 +11,11 @@ function ProblemService() { // Uppercase first letter
     useEffect(() => {
       async function fetchProblems() {
         try {
+          // Use the environment variable for the backend URL
           const response = await axios.get(
-            "https://http://localhost:5000/problemsTable"
+            `${process.env.REACT_APP_BACKEND_URL}/api/problems`
           );
-          setProblems(response.data.data);
+          setProblems(response.data.problems);
           toast.success("Problems fetched successfully");
         } catch (error) {
           toast.error("Failed to fetch problems");
@@ -45,5 +46,4 @@ function ProblemService() { // Uppercase first letter
     );
   }
   
-  export default ProblemService;
-  
+export default ProblemService;

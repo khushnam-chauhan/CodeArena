@@ -1,29 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import "./Rankings.css"; // Make sure you have styles
+import "./Rankings.css";
 
 const Rankings = () => {
-  const [users, setUsers] = useState([]);  // State to hold ranking data
-  const [filteredUsers, setFilteredUsers] = useState([]);  // State for filtered users based on search
-  const [loading, setLoading] = useState(true);  // State for loading
-  const [error, setError] = useState(null);  // State for error handling
-  const [searchTerm, setSearchTerm] = useState('');  // State for search term
+  const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchRankingData = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/rankings");  // Endpoint for rankings
+        // Fetch rankings using the backend URL from .env
+        const response = await fetch(`https://codearena-backend-ffqp.onrender.com/api/rankings`);
         if (!response.ok) {
           throw new Error("Failed to fetch ranking data");
         }
         const data = await response.json();
-        setUsers(data);  // Set the fetched users' data
-        setFilteredUsers(data);  // Initially set filtered users to all users
-        setLoading(false);  // Stop loading
+        setUsers(data);
+        setFilteredUsers(data);
+        setLoading(false);
       } catch (err) {
-        setError(err.message);  // Set error message if fetching fails
+        setError(err.message);
         setLoading(false);
       }
     };
@@ -32,7 +33,7 @@ const Rankings = () => {
   }, []);
 
   useEffect(() => {
-    // Filter users based on the search term
+    // Filter users based on search term
     setFilteredUsers(
       users.filter(user =>
         user.username.toLowerCase().includes(searchTerm.toLowerCase())
@@ -54,7 +55,7 @@ const Rankings = () => {
         <h1>Rankings</h1>
         <p>See where you stand among other users!</p>
         
-        {/* Search Bar */}
+        {/* Search bar to filter rankings by username */}
         <input
           type="text"
           className="search-input"
@@ -78,19 +79,18 @@ const Rankings = () => {
           </thead>
           <tbody>
             {filteredUsers
-              .sort((a, b) => b.points - a.points) // Sort users by points in descending order
+              .sort((a, b) => b.points - a.points) // Sort users by points
               .map((user, index) => {
-                let rowClass = ""; // Default class for normal rows
-                if (index === 0) rowClass = "top-rank"; // Top performer (1st)
-                if (index === 1) rowClass = "second-rank"; // Second performer (2nd)
-                if (index === 2) rowClass = "third-rank"; // Third performer (3rd)
+                let rowClass = ""; 
+                if (index === 0) rowClass = "top-rank";
+                if (index === 1) rowClass = "second-rank";
+                if (index === 2) rowClass = "third-rank";
 
                 return (
                   <tr key={user.username} className={rowClass}>
                     <td>{index + 1}</td>
                     <td>
                       {user.username}
-                      {/* Add trophies for the top 3 users */}
                       {index === 0 && <span className="trophy">🏆</span>}
                       {index === 1 && <span className="trophy">🥈</span>}
                       {index === 2 && <span className="trophy">🥉</span>}

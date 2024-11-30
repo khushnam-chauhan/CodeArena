@@ -28,14 +28,14 @@ const Profile = () => {
       try {
         // Combined fetch for user details and stats
         const [userResponse, statsResponse] = await Promise.all([
-          fetch("http://localhost:5000/api/user", {
+          fetch("https://codearena-backend-ffqp.onrender.com/api/user", {
             method: "GET",
             headers: {
               "Authorization": `Bearer ${token}`,
               "Content-Type": "application/json",
             },
           }),
-          fetch("http://localhost:5000/api/user/stats", {
+          fetch("https://codearena-backend-ffqp.onrender.com/api/user/stats", {
             method: "GET",
             headers: {
               "Authorization": `Bearer ${token}`,

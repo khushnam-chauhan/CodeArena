@@ -88,7 +88,7 @@ function Workspace() {
 
     const fetchProblemDetails = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/problems/${problemId}`, {
+        const response = await axios.get(`https://codearena-backend-ffqp.onrender.com/api/problems/${problemId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -101,6 +101,139 @@ function Workspace() {
         setLoading(false);
       }
     };
+    
+    const fetchLanguages = async () => {
+      const options = {
+        method: "GET",
+        url: `${process.env.REACT_APP_JUDGE0_API_URL}/languages`,
+        headers: {
+          "x-rapidapi-key": process.env.REACT_APP_JUDGE0_API_KEY,
+          "x-rapidapi-host": process.env.REACT_APP_JUDGE0_API_HOST,
+        },
+      };
+    
+      try {
+        const response = await axios.request(options);
+        const filteredLanguages = response.data.filter(lang =>
+          ["C", "C++", "JavaScript", "Java", "Python", "Dart"].some(name =>
+            lang.name.includes(name)
+          )
+        );
+        setLanguages(filteredLanguages);
+      } catch (error) {
+        console.error("Error fetching languages:", error);
+        alert("Error fetching programming languages.");
+      }
+    };
+    
+    const handleCompile = async () => {
+      setIsSubmitting(true);
+      setOutput("");
+      setSubmissionId(null);
+      setCompileStatus({
+        status: null,
+        message: "",
+        time: null,
+        memory: null
+      });
+    
+      if (!code.trim()) {
+        alert("Please provide valid source code.");
+        setIsSubmitting(false);
+        return;
+      }
+    
+      // Log the code to check before encoding
+      console.log("Original Code:", code);
+    
+      const base64Code = btoa(unescape(encodeURIComponent(code)));  // Encode the code to Base64
+    
+      // Log the Base64 string to verify it
+      console.log("Base64 Encoded Code:", base64Code);
+    
+      const formData = {
+        language_id: selectedLanguageId,
+        source_code: base64Code,  // Send Base64 code
+        stdin: "",
+      };
+    
+      const options = {
+        method: "POST",
+        url: `${process.env.REACT_APP_JUDGE0_API_URL}/submissions`,
+        params: { fields: "*" },
+        headers: {
+          "x-rapidapi-key": process.env.REACT_APP_JUDGE0_API_KEY,
+          "x-rapidapi-host": process.env.REACT_APP_JUDGE0_API_HOST,
+          "Content-Type": "application/json",
+        },
+        data: formData,
+      };
+    
+      try {
+        const response = await axios.request(options);
+        const { token } = response.data;
+        setSubmissionId(token);
+    
+        await checkSubmissionStatus(token);
+      } catch (error) {
+        console.error("Compilation error:", error);
+        alert(`Compilation failed: ${error.response?.data?.message || "Unknown error"}`);
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+    
+    
+    const checkSubmissionStatus = async (submissionToken = submissionId) => {
+      if (!submissionToken) return;
+    
+      setIsCheckingStatus(true);
+    
+      const options = {
+        method: "GET",
+        url: `${process.env.REACT_APP_JUDGE0_API_URL}/submissions/${submissionToken}`,
+        params: {
+          base64_encoded: "true",
+          fields: "*",
+        },
+        headers: {
+          "x-rapidapi-key": process.env.REACT_APP_JUDGE0_API_KEY,
+          "x-rapidapi-host": process.env.REACT_APP_JUDGE0_API_HOST,
+        },
+      };
+    
+      try {
+        const response = await axios.request(options);
+        const { stdout, stderr, compile_output, status, time, memory } = response.data;
+    
+        const decodedOutput = stdout 
+          ? atob(stdout) 
+          : (stderr 
+            ? atob(stderr) 
+            : (compile_output 
+              ? atob(compile_output) 
+              : "No output generated"));
+    
+        setCompileStatus({
+          status: status.description,
+          message: decodedOutput,
+          time: time ? `${time} seconds` : null,
+          memory: memory ? `${memory} KB` : null
+        });
+    
+        setOutput(decodedOutput);
+    
+        if (status.id <= 2) {
+          setTimeout(() => checkSubmissionStatus(submissionToken), 1000);
+        }
+      } catch (error) {
+        console.error("Error checking submission status:", error);
+        alert("Error checking submission status.");
+      } finally {
+        setIsCheckingStatus(false);
+      }
+    };
+    
 
     fetchProblemDetails();
   }, [problemId, token]);
@@ -243,7 +376,7 @@ function Workspace() {
     
     try {
       const response = await axios.patch(
-        `http://localhost:5000/api/problems/${problemId}/solve`,
+        `https://codearena-backend-ffqp.onrender.com/api/problems/${problemId}/solve`,
         {}, // No body needed
         {
           headers: {

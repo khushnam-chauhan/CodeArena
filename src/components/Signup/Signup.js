@@ -44,7 +44,7 @@ const Signup = () => {
     try {
       // Sending a POST request to the backend for signup
       const response = await axios.post(
-        'http://localhost:5000/auth/signup', // Updated path
+        'https://codearena-backend-ffqp.onrender.com/auth/signup', // Updated path
         {
           username: formData.username,
           email: formData.email,
