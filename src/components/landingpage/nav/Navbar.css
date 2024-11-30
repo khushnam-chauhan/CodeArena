@@ -1,0 +1,133 @@
+.navbar {
+  background-color: #ffffff;
+  padding: 0.6rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+}
+
+.navbar .logo {
+  
+  margin-left: 3rem;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #000000;
+  text-decoration: none;
+}
+
+.navbar .logo .highlight {
+  color: #f8d210; /* Yellow for Arena */
+}
+
+.container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+/* Hamburger menu styles */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 24px;
+  height: 18px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 10; /* Ensure it stays above menu */
+}
+
+.hamburger .bar {
+  display: block;
+  height: 3px;
+  width: 100%;
+  background-color: #000;
+  border-radius: 5px;
+  transition: 0.3s;
+}
+
+.hamburger.active .bar:nth-child(1) {
+  transform: rotate(45deg) translateY(6px);
+}
+
+.hamburger.active .bar:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger.active .bar:nth-child(3) {
+  transform: rotate(-45deg) translateY(-6px);
+}
+
+/* Navigation links */
+.nav-links {
+  margin-right: 3rem;
+  list-style: none;
+  display: flex;
+  gap: 2rem;
+  transition: all 0.3s ease;
+}
+
+.nav-links a {
+  text-decoration: none;
+  font-size: 1.1rem;
+  color: #000000;
+  transition: color 0.3s ease;
+}
+
+.nav-links a:hover {
+  color: #f8d210; /* Yellow on hover */
+}
+
+.nav-btn {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 15px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.nav-btn:hover {
+  background-color: #d32f2f;
+}
+
+/* Mobile styles */
+@media (max-width: 768px) {
+  .hamburger {
+    display: flex;
+  }
+
+  .nav-links {
+    flex-direction: column;
+    position: absolute;
+    z-index: 10;
+    top: 100%;
+    right: 0;
+    background-color: #ffffff;
+    width: 100%; /* Full width for mobile */
+    max-height: 0;
+    overflow: hidden;
+    border-top: 1px solid #e0e0e0;
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .nav-links.open {
+    max-height: 300px; /* Adjust based on the number of links */
+    opacity: 1;
+    visibility: visible;
+    transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+  }
+
+  .nav-links li {
+    text-align: center;
+    padding: 0.8rem 0;
+  }
+
+  .nav-links .nav-btn {
+    margin: 0 auto;
+  }
+}
