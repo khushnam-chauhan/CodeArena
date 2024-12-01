@@ -190,7 +190,9 @@ footer a:hover{
   align-items: center;
 }
 
-
+.editor-head{
+  display: flex;
+}
 .CodeMirror {
   height: 100% !important;
   border: 1px solid #ccc;

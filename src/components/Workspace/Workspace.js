@@ -5,81 +5,106 @@ import { useParams, useNavigate } from "react-router-dom";
 import ProblemDescription from "./ProblemDescription";
 import CodeEditor from "./CodeEditor";
 
-// Language Selector Component
-const LanguageSelector = ({
-  selectedLanguageId,
-  setSelectedLanguageId,
-  languages,
-}) => (
-  <div className="language-selector">
-    <label htmlFor="language">Select Language:</label>
-    <select
-      id="language"
-      value={selectedLanguageId}
-      onChange={(e) => setSelectedLanguageId(Number(e.target.value))}
-    >
-      {languages.map((lang) => (
-        <option key={lang.id} value={lang.id}>
-          {lang.name}
-        </option>
-      ))}
-    </select>
-  </div>
-);
+class Judge0API {
+  constructor(apiKey) {
+    this.apiKey = apiKey;
+    this.baseUrl = "https://judge0-ce.p.rapidapi.com";
+  }
 
-// Output Preview Component
-const OutputPreview = ({ output, compileStatus }) => (
-  <div className="output-preview">
-    <h3>Output Preview</h3>
-    {compileStatus.status && (
-      <div className="compile-status">
-        <p>
-          <strong>Status:</strong> {compileStatus.status}
-        </p>
-        {compileStatus.time && (
-          <p>
-            <strong>Execution Time:</strong> {compileStatus.time}
-          </p>
-        )}
-        {compileStatus.memory && (
-          <p>
-            <strong>Memory Used:</strong> {compileStatus.memory}
-          </p>
-        )}
-      </div>
-    )}
-    <pre>{output}</pre>
-  </div>
-);
+  async createSubmission(languageId, sourceCode, stdin = "") {
+    const url = `${this.baseUrl}/submissions?base64_encoded=true&wait=false&fields=*`;
 
-// Button Container Component
-const ButtonContainer = ({
-  handleCompile,
-  checkSubmissionStatus,
-  isSubmitting,
-  isCheckingStatus,
-  submissionId,
-  code,
-}) => (
-  <div className="button-container">
-    <button
-      className="compile-button"
-      onClick={handleCompile}
-      disabled={isSubmitting || !code}
-    >
-      {isSubmitting ? "Compiling..." : "Compile"}
-    </button>
-    {submissionId && (
-      <button
-        className="check-status-button"
-        onClick={checkSubmissionStatus}
-        disabled={isCheckingStatus}
-      >
-        {isCheckingStatus ? "Checking..." : "Check Status"}
-      </button>
-    )}
-  </div>
-);
+    // Use browser's btoa for Base64 encoding
+    const base64SourceCode = btoa(unescape(encodeURIComponent(sourceCode)));
+    const base64Stdin = btoa(unescape(encodeURIComponent(stdin)));
+
+    const options = {
+      method: "POST",
+      url: url,
+      headers: {
+        "x-rapidapi-key": this.apiKey,
+        "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
+        "Content-Type": "application/json",
+      },
+      data: {
+        language_id: languageId,
+        source_code: base64SourceCode,
+        stdin: base64Stdin,
+      },
+    };
+
+    try {
+      const response = await axios.request(options);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating submission:", error);
+      throw error;
+    }
+  }
+
+  async getSubmission(submissionToken, maxAttempts = 20) {
+    const url = `${this.baseUrl}/submissions/${submissionToken}?base64_encoded=true&fields=*`;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const response = await axios.get(url, {
+          headers: {
+            "x-rapidapi-key": this.apiKey,
+            "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
+          },
+        });
+
+        const result = response.data;
+
+        // Check if processing is complete
+        if (result.status.id > 2) {
+          return result;
+        }
+
+        // Wait before next attempt (increasing delay)
+        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+      } catch (error) {
+        console.error(`Attempt ${attempt} failed:`, error);
+      }
+    }
+
+    throw new Error("Submission processing timed out");
+  }
+
+  decodeBase64(encodedStr) {
+    try {
+      return encodedStr 
+        ? decodeURIComponent(escape(atob(encodedStr))) 
+        : "";
+    } catch (error) {
+      console.error("Decoding error:", error);
+      return "";
+    }
+  }
+
+  processSubmissionResults(submission) {
+    console.log("\n--- Detailed Submission Analysis ---");
+    console.log("Status Code:", submission.status.id);
+    console.log("Status Description:", submission.status.description);
+    
+    // Detailed output processing
+    console.log("\n--- Execution Details ---");
+    console.log("Time Used:", submission.time ? `${submission.time} seconds` : "N/A");
+    console.log("Memory Used:", submission.memory ? `${submission.memory} KB` : "N/A");
+
+    // Prepare output object
+    const output = {
+      status: submission.status.description,
+      time: submission.time ? `${submission.time} seconds` : "N/A",
+      memory: submission.memory ? `${submission.memory} KB` : "N/A",
+      stdout: this.decodeBase64(submission.stdout),
+      stderr: this.decodeBase64(submission.stderr),
+      compileOutput: this.decodeBase64(submission.compile_output)
+    };
+
+    return output;
+  }
+}
 
 function Workspace() {
   const { problemId } = useParams();
@@ -89,24 +114,16 @@ function Workspace() {
   const [error, setError] = useState(null);
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [output, setOutput] = useState("");
-  const [submissionId, setSubmissionId] = useState(null);
+  const [output, setOutput] = useState(null);
   const [languages, setLanguages] = useState([]);
   const [selectedLanguageId, setSelectedLanguageId] = useState(92); // Default to Python
-  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
-  const [compileStatus, setCompileStatus] = useState({
-    status: null,
-    message: "",
-    time: null,
-    memory: null,
-  });
 
   const token = localStorage.getItem("token");
+  const JUDGE0_API_KEY = "8fd792c414msha5b799f22d55532p13345ejsnbc9d95444943";
+  const judge0 = new Judge0API(JUDGE0_API_KEY);
 
-  // Fetch problem details
+  // Fetch problem details and languages
   useEffect(() => {
-    if (!problemId) return;
-
     const fetchProblemDetails = async () => {
       try {
         const response = await axios.get(
@@ -119,7 +136,6 @@ function Workspace() {
         );
         setDetails(response.data);
       } catch (error) {
-        console.error("Error fetching problem details:", error);
         setError("Error fetching problem details. Please try again later.");
       } finally {
         setLoading(false);
@@ -127,288 +143,130 @@ function Workspace() {
     };
 
     const fetchLanguages = async () => {
-      const options = {
-        method: "GET",
-        url: `${process.env.REACT_APP_JUDGE0_API_URL}/languages`,
-        headers: {
-          "x-rapidapi-key": process.env.REACT_APP_JUDGE0_API_KEY,
-          "x-rapidapi-host": process.env.REACT_APP_JUDGE0_API_HOST,
-        },
-      };
-
       try {
-        const response = await axios.request(options);
+        const response = await axios.get(
+          "https://judge0-ce.p.rapidapi.com/languages",
+          {
+            headers: {
+              "x-rapidapi-key": JUDGE0_API_KEY,
+              "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
+            },
+          }
+        );
         const filteredLanguages = response.data.filter((lang) =>
           ["C", "C++", "JavaScript", "Java", "Python", "Dart"].some((name) =>
             lang.name.includes(name)
           )
         );
         setLanguages(filteredLanguages);
-      } catch (error) {
-        console.error("Error fetching languages:", error);
-        alert("Error fetching programming languages.");
-      }
-    };
-
-    const handleCompile = async () => {
-      setIsSubmitting(true);
-      setOutput("");
-      setSubmissionId(null);
-      setCompileStatus({
-        status: null,
-        message: "",
-        time: null,
-        memory: null,
-      });
-
-      if (!code.trim()) {
-        alert("Please provide valid source code.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Log the code to check before encoding
-      console.log("Original Code:", code);
-
-      const base64Code = btoa(unescape(encodeURIComponent(code))); // Encode the code to Base64
-
-      // Log the Base64 string to verify it
-      console.log("Base64 Encoded Code:", base64Code);
-
-      const formData = {
-        language_id: selectedLanguageId,
-        source_code: base64Code, // Send Base64 code
-        stdin: "",
-      };
-
-      const options = {
-        method: "POST",
-        url: `${process.env.REACT_APP_JUDGE0_API_URL}/submissions`,
-        params: { fields: "*" },
-        headers: {
-          "x-rapidapi-key": process.env.REACT_APP_JUDGE0_API_KEY,
-          "x-rapidapi-host": process.env.REACT_APP_JUDGE0_API_HOST,
-          "Content-Type": "application/json",
-        },
-        data: formData,
-      };
-
-      try {
-        const response = await axios.request(options);
-        const { token } = response.data;
-        setSubmissionId(token);
-
-        await checkSubmissionStatus(token);
-      } catch (error) {
-        console.error("Compilation error:", error);
-        alert(
-          `Compilation failed: ${
-            error.response?.data?.message || "Unknown error"
-          }`
-        );
-      } finally {
-        setIsSubmitting(false);
-      }
-    };
-
-    const checkSubmissionStatus = async (submissionToken = submissionId) => {
-      if (!submissionToken) return;
-
-      setIsCheckingStatus(true);
-
-      const options = {
-        method: "GET",
-        url: `${process.env.REACT_APP_JUDGE0_API_URL}/submissions/${submissionToken}`,
-        params: {
-          base64_encoded: "true",
-          fields: "*",
-        },
-        headers: {
-          "x-rapidapi-key": process.env.REACT_APP_JUDGE0_API_KEY,
-          "x-rapidapi-host": process.env.REACT_APP_JUDGE0_API_HOST,
-        },
-      };
-
-      try {
-        const response = await axios.request(options);
-        const { stdout, stderr, compile_output, status, time, memory } =
-          response.data;
-
-        const decodedOutput = stdout
-          ? atob(stdout)
-          : stderr
-          ? atob(stderr)
-          : compile_output
-          ? atob(compile_output)
-          : "No output generated";
-
-        setCompileStatus({
-          status: status.description,
-          message: decodedOutput,
-          time: time ? `${time} seconds` : null,
-          memory: memory ? `${memory} KB` : null,
-        });
-
-        setOutput(decodedOutput);
-
-        if (status.id <= 2) {
-          setTimeout(() => checkSubmissionStatus(submissionToken), 1000);
+        
+        // Set default language if available
+        const pythonLang = filteredLanguages.find(lang => lang.name.includes("Python"));
+        if (pythonLang) {
+          setSelectedLanguageId(pythonLang.id);
         }
       } catch (error) {
-        console.error("Error checking submission status:", error);
-        alert("Error checking submission status.");
-      } finally {
-        setIsCheckingStatus(false);
+        console.error("Error fetching languages:", error);
+        setError("Failed to load programming languages.");
       }
     };
 
     fetchProblemDetails();
+    fetchLanguages();
   }, [problemId, token]);
 
-  // Fetch programming languages
-  const fetchLanguages = async () => {
-    const options = {
-      method: "GET",
-      url: "https://judge0-ce.p.rapidapi.com/languages",
-      headers: {
-        "x-rapidapi-key": "8fd792c414msha5b799f22d55532p13345ejsnbc9d95444943",
-        "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
-      },
-    };
-
-    try {
-      const response = await axios.request(options);
-      const filteredLanguages = response.data.filter((lang) =>
-        ["C", "C++", "JavaScript", "Java", "Python", "Dart"].some((name) =>
-          lang.name.includes(name)
-        )
-      );
-      setLanguages(filteredLanguages);
-    } catch (error) {
-      console.error("Error fetching languages:", error);
-      alert("Error fetching programming languages.");
-    }
-  };
-
-  useEffect(() => {
-    fetchLanguages();
-  }, []);
-
-  // Handle compile action
-  const handleCompile = async () => {
-    setIsSubmitting(true);
-    setOutput("");
-    setSubmissionId(null);
-    setCompileStatus({
-      status: null,
-      message: "",
-      time: null,
-      memory: null,
-    });
-
+  // Handle Code Execution
+  const handleExecute = async () => {
     if (!code.trim()) {
       alert("Please provide valid source code.");
-      setIsSubmitting(false);
       return;
     }
 
-    const base64Code = btoa(code);
-    const formData = {
-      language_id: selectedLanguageId,
-      source_code: base64Code,
-      stdin: "",
-      base64_encoded: true, // Add this line
-    };
+    setIsSubmitting(true);
+    setOutput(null);
 
-    const options = {
-      method: "POST",
-      url: "https://judge0-ce.p.rapidapi.com/submissions",
-      params: { fields: "*" },
-      headers: {
-        "x-rapidapi-key": "8fd792c414msha5b799f22d55532p13345ejsnbc9d95444943",
-        "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
-        "Content-Type": "application/json",
-      },
-      data: formData,
-    };
     try {
-      const response = await axios.request(options);
-      const { token } = response.data;
-      setSubmissionId(token);
-
-      await checkSubmissionStatus(token);
-    } catch (error) {
-      console.error("Compilation error:", error);
-      alert(
-        `Compilation failed: ${
-          error.response?.data?.message || "Unknown error"
-        }`
+      // Create submission
+      const submissionResponse = await judge0.createSubmission(
+        selectedLanguageId, 
+        code
       );
+
+      // Get submission result
+      const submissionResult = await judge0.getSubmission(submissionResponse.token);
+      
+      // Process and set output
+      const processedOutput = judge0.processSubmissionResults(submissionResult);
+      setOutput(processedOutput);
+    } catch (error) {
+      console.error("Execution Error:", error);
+      setOutput({
+        status: "Error",
+        stdout: "Failed to execute code",
+        stderr: error.message
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Check submission status
-  const checkSubmissionStatus = async (submissionToken = submissionId) => {
-    if (!submissionToken) return;
+  // Language Selector Component
+  const LanguageSelector = () => (
+    <div className="language-selector">
+      <label htmlFor="language">Select Language:</label>
+      <select
+        id="language"
+        value={selectedLanguageId}
+        onChange={(e) => setSelectedLanguageId(Number(e.target.value))}
+      >
+        {languages.map((lang) => (
+          <option key={lang.id} value={lang.id}>
+            {lang.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 
-    setIsCheckingStatus(true);
+  // Output Preview Component
+  const OutputPreview = () => {
+    if (!output) return null;
 
-    const options = {
-      method: "GET",
-      url: `https://judge0-ce.p.rapidapi.com/submissions/${submissionToken}`,
-      params: {
-        base64_encoded: "true",
-        fields: "*",
-      },
-      headers: {
-        "x-rapidapi-key": "8fd792c414msha5b799f22d55532p13345ejsnbc9d95444943",
-        "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
-      },
-    };
-
-    try {
-      const response = await axios.request(options);
-      const { stdout, stderr, compile_output, status, time, memory } =
-        response.data;
-
-      const decodedOutput = stdout
-        ? atob(stdout)
-        : stderr
-        ? atob(stderr)
-        : compile_output
-        ? atob(compile_output)
-        : "No output generated";
-
-      setCompileStatus({
-        status: status.description,
-        message: decodedOutput,
-        time: time ? `${time} seconds` : null,
-        memory: memory ? `${memory} KB` : null,
-      });
-
-      setOutput(decodedOutput);
-
-      if (status.id <= 2) {
-        setTimeout(() => checkSubmissionStatus(submissionToken), 1000);
-      }
-    } catch (error) {
-      console.error("Error checking submission status:", error);
-      alert("Error checking submission status.");
-    } finally {
-      setIsCheckingStatus(false);
-    }
+    return (
+      <div className="output-preview">
+        <h3>Output Preview</h3>
+        <div className="compile-status">
+          <p><strong>Status:</strong> {output.status}</p>
+          <p><strong>Execution Time:</strong> {output.time}</p>
+          <p><strong>Memory Used:</strong> {output.memory}</p>
+        </div>
+        {output.stdout && (
+          <div>
+            <h4>Standard Output:</h4>
+            <pre>{output.stdout}</pre>
+          </div>
+        )}
+        {output.stderr && (
+          <div className="error-output">
+            <h4>Standard Error:</h4>
+            <pre>{output.stderr}</pre>
+          </div>
+        )}
+        {output.compileOutput && (
+          <div className="compile-output">
+            <h4>Compilation Output:</h4>
+            <pre>{output.compileOutput}</pre>
+          </div>
+        )}
+      </div>
+    );
   };
-
-  // Mark problem as solved
+  // Mark Problem as Solved
   const markProblemAsSolved = async () => {
-    const token = localStorage.getItem("token");
-
     try {
       const response = await axios.patch(
         `https://codearena-backend-ffqp.onrender.com/api/problems/${problemId}/solve`,
-        {}, // No body needed
+        {},
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -423,44 +281,31 @@ function Workspace() {
         navigate("/problemtable");
       }
     } catch (error) {
-      console.error("Error marking problem as solved:", error);
-      alert(
-        error.response?.data?.message || "Failed to mark the problem as solved."
-      );
+      alert("Failed to mark the problem as solved.");
     }
   };
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>{error}</div>;
-  if (!details) return <div>Problem not found</div>;
+
 
   return (
-    <Split
-      className="split-horizontal"
-      direction="horizontal"
-      sizes={[50, 50]}
-      gutterSize={10}
-    >
+    <Split className="split-horizontal" direction="horizontal" sizes={[50, 50]} gutterSize={10}>
       <div className="workspace-panel">
         <ProblemDescription details={details} />
       </div>
       <div className="workspace-panel">
-        <LanguageSelector
-          selectedLanguageId={selectedLanguageId}
-          setSelectedLanguageId={setSelectedLanguageId}
-          languages={languages}
-        />
+        <LanguageSelector />
         <CodeEditor code={code} setCode={setCode} />
-        <OutputPreview output={output} compileStatus={compileStatus} />
-        <ButtonContainer
-          handleCompile={handleCompile}
-          checkSubmissionStatus={checkSubmissionStatus}
-          isSubmitting={isSubmitting}
-          isCheckingStatus={isCheckingStatus}
-          submissionId={submissionId}
-          code={code}
-        />
-        <button onClick={markProblemAsSolved}>Mark as Solved</button>
+        <button 
+          onClick={handleExecute} 
+          disabled={isSubmitting}
+          className="execute-button"
+        >
+          {isSubmitting ? "Executing..." : "Execute Code"}
+        </button>
+        <OutputPreview />
+      <button onClick={markProblemAsSolved}>Submit</button>
       </div>
     </Split>
   );
