@@ -13,7 +13,7 @@ const LandingPage = () => {
   const handleJoinClick = () => {
     const isLoggedIn = localStorage.getItem("token"); // Check if user is logged in
     if (isLoggedIn) {
-      navigate("/problems");  // Redirect to problems page if logged in
+      navigate("/problemtable");  // Redirect to problems page if logged in
     } else {
       navigate("/login");  // Redirect to login page if not logged in
     }
