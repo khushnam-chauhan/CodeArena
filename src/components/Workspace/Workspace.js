@@ -285,8 +285,7 @@ function Workspace() {
       return;
     }
 
-    const base64Code = btoa(unescape(encodeURIComponent(code)));
-
+    const base64Code = btoa(code);
     const formData = {
       language_id: selectedLanguageId,
       source_code: base64Code,
