@@ -6,7 +6,11 @@ import ProblemDescription from "./ProblemDescription";
 import CodeEditor from "./CodeEditor";
 
 // Language Selector Component
-const LanguageSelector = ({ selectedLanguageId, setSelectedLanguageId, languages }) => (
+const LanguageSelector = ({
+  selectedLanguageId,
+  setSelectedLanguageId,
+  languages,
+}) => (
   <div className="language-selector">
     <label htmlFor="language">Select Language:</label>
     <select
@@ -29,9 +33,19 @@ const OutputPreview = ({ output, compileStatus }) => (
     <h3>Output Preview</h3>
     {compileStatus.status && (
       <div className="compile-status">
-        <p><strong>Status:</strong> {compileStatus.status}</p>
-        {compileStatus.time && <p><strong>Execution Time:</strong> {compileStatus.time}</p>}
-        {compileStatus.memory && <p><strong>Memory Used:</strong> {compileStatus.memory}</p>}
+        <p>
+          <strong>Status:</strong> {compileStatus.status}
+        </p>
+        {compileStatus.time && (
+          <p>
+            <strong>Execution Time:</strong> {compileStatus.time}
+          </p>
+        )}
+        {compileStatus.memory && (
+          <p>
+            <strong>Memory Used:</strong> {compileStatus.memory}
+          </p>
+        )}
       </div>
     )}
     <pre>{output}</pre>
@@ -39,18 +53,25 @@ const OutputPreview = ({ output, compileStatus }) => (
 );
 
 // Button Container Component
-const ButtonContainer = ({ handleCompile, checkSubmissionStatus, isSubmitting, isCheckingStatus, submissionId, code }) => (
+const ButtonContainer = ({
+  handleCompile,
+  checkSubmissionStatus,
+  isSubmitting,
+  isCheckingStatus,
+  submissionId,
+  code,
+}) => (
   <div className="button-container">
-    <button 
-      className="compile-button" 
-      onClick={handleCompile} 
+    <button
+      className="compile-button"
+      onClick={handleCompile}
       disabled={isSubmitting || !code}
     >
       {isSubmitting ? "Compiling..." : "Compile"}
     </button>
     {submissionId && (
-      <button 
-        className="check-status-button" 
+      <button
+        className="check-status-button"
         onClick={checkSubmissionStatus}
         disabled={isCheckingStatus}
       >
@@ -77,7 +98,7 @@ function Workspace() {
     status: null,
     message: "",
     time: null,
-    memory: null
+    memory: null,
   });
 
   const token = localStorage.getItem("token");
@@ -88,11 +109,14 @@ function Workspace() {
 
     const fetchProblemDetails = async () => {
       try {
-        const response = await axios.get(`https://codearena-backend-ffqp.onrender.com/api/problems/${problemId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await axios.get(
+          `https://codearena-backend-ffqp.onrender.com/api/problems/${problemId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
         setDetails(response.data);
       } catch (error) {
         console.error("Error fetching problem details:", error);
@@ -101,7 +125,7 @@ function Workspace() {
         setLoading(false);
       }
     };
-    
+
     const fetchLanguages = async () => {
       const options = {
         method: "GET",
@@ -111,11 +135,11 @@ function Workspace() {
           "x-rapidapi-host": process.env.REACT_APP_JUDGE0_API_HOST,
         },
       };
-    
+
       try {
         const response = await axios.request(options);
-        const filteredLanguages = response.data.filter(lang =>
-          ["C", "C++", "JavaScript", "Java", "Python", "Dart"].some(name =>
+        const filteredLanguages = response.data.filter((lang) =>
+          ["C", "C++", "JavaScript", "Java", "Python", "Dart"].some((name) =>
             lang.name.includes(name)
           )
         );
@@ -125,7 +149,7 @@ function Workspace() {
         alert("Error fetching programming languages.");
       }
     };
-    
+
     const handleCompile = async () => {
       setIsSubmitting(true);
       setOutput("");
@@ -134,29 +158,29 @@ function Workspace() {
         status: null,
         message: "",
         time: null,
-        memory: null
+        memory: null,
       });
-    
+
       if (!code.trim()) {
         alert("Please provide valid source code.");
         setIsSubmitting(false);
         return;
       }
-    
+
       // Log the code to check before encoding
       console.log("Original Code:", code);
-    
-      const base64Code = btoa(unescape(encodeURIComponent(code)));  // Encode the code to Base64
-    
+
+      const base64Code = btoa(unescape(encodeURIComponent(code))); // Encode the code to Base64
+
       // Log the Base64 string to verify it
       console.log("Base64 Encoded Code:", base64Code);
-    
+
       const formData = {
         language_id: selectedLanguageId,
-        source_code: base64Code,  // Send Base64 code
+        source_code: base64Code, // Send Base64 code
         stdin: "",
       };
-    
+
       const options = {
         method: "POST",
         url: `${process.env.REACT_APP_JUDGE0_API_URL}/submissions`,
@@ -168,27 +192,30 @@ function Workspace() {
         },
         data: formData,
       };
-    
+
       try {
         const response = await axios.request(options);
         const { token } = response.data;
         setSubmissionId(token);
-    
+
         await checkSubmissionStatus(token);
       } catch (error) {
         console.error("Compilation error:", error);
-        alert(`Compilation failed: ${error.response?.data?.message || "Unknown error"}`);
+        alert(
+          `Compilation failed: ${
+            error.response?.data?.message || "Unknown error"
+          }`
+        );
       } finally {
         setIsSubmitting(false);
       }
     };
-    
-    
+
     const checkSubmissionStatus = async (submissionToken = submissionId) => {
       if (!submissionToken) return;
-    
+
       setIsCheckingStatus(true);
-    
+
       const options = {
         method: "GET",
         url: `${process.env.REACT_APP_JUDGE0_API_URL}/submissions/${submissionToken}`,
@@ -201,28 +228,29 @@ function Workspace() {
           "x-rapidapi-host": process.env.REACT_APP_JUDGE0_API_HOST,
         },
       };
-    
+
       try {
         const response = await axios.request(options);
-        const { stdout, stderr, compile_output, status, time, memory } = response.data;
-    
-        const decodedOutput = stdout 
-          ? atob(stdout) 
-          : (stderr 
-            ? atob(stderr) 
-            : (compile_output 
-              ? atob(compile_output) 
-              : "No output generated"));
-    
+        const { stdout, stderr, compile_output, status, time, memory } =
+          response.data;
+
+        const decodedOutput = stdout
+          ? atob(stdout)
+          : stderr
+          ? atob(stderr)
+          : compile_output
+          ? atob(compile_output)
+          : "No output generated";
+
         setCompileStatus({
           status: status.description,
           message: decodedOutput,
           time: time ? `${time} seconds` : null,
-          memory: memory ? `${memory} KB` : null
+          memory: memory ? `${memory} KB` : null,
         });
-    
+
         setOutput(decodedOutput);
-    
+
         if (status.id <= 2) {
           setTimeout(() => checkSubmissionStatus(submissionToken), 1000);
         }
@@ -233,7 +261,6 @@ function Workspace() {
         setIsCheckingStatus(false);
       }
     };
-    
 
     fetchProblemDetails();
   }, [problemId, token]);
@@ -251,8 +278,8 @@ function Workspace() {
 
     try {
       const response = await axios.request(options);
-      const filteredLanguages = response.data.filter(lang =>
-        ["C", "C++", "JavaScript", "Java", "Python", "Dart"].some(name =>
+      const filteredLanguages = response.data.filter((lang) =>
+        ["C", "C++", "JavaScript", "Java", "Python", "Dart"].some((name) =>
           lang.name.includes(name)
         )
       );
@@ -276,7 +303,7 @@ function Workspace() {
       status: null,
       message: "",
       time: null,
-      memory: null
+      memory: null,
     });
 
     if (!code.trim()) {
@@ -290,6 +317,7 @@ function Workspace() {
       language_id: selectedLanguageId,
       source_code: base64Code,
       stdin: "",
+      base64_encoded: true, // Add this line
     };
 
     const options = {
@@ -303,7 +331,6 @@ function Workspace() {
       },
       data: formData,
     };
-
     try {
       const response = await axios.request(options);
       const { token } = response.data;
@@ -312,7 +339,11 @@ function Workspace() {
       await checkSubmissionStatus(token);
     } catch (error) {
       console.error("Compilation error:", error);
-      alert(`Compilation failed: ${error.response?.data?.message || "Unknown error"}`);
+      alert(
+        `Compilation failed: ${
+          error.response?.data?.message || "Unknown error"
+        }`
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -339,21 +370,22 @@ function Workspace() {
 
     try {
       const response = await axios.request(options);
-      const { stdout, stderr, compile_output, status, time, memory } = response.data;
+      const { stdout, stderr, compile_output, status, time, memory } =
+        response.data;
 
-      const decodedOutput = stdout 
-        ? atob(stdout) 
-        : (stderr 
-          ? atob(stderr) 
-          : (compile_output 
-            ? atob(compile_output) 
-            : "No output generated"));
+      const decodedOutput = stdout
+        ? atob(stdout)
+        : stderr
+        ? atob(stderr)
+        : compile_output
+        ? atob(compile_output)
+        : "No output generated";
 
       setCompileStatus({
         status: status.description,
         message: decodedOutput,
         time: time ? `${time} seconds` : null,
-        memory: memory ? `${memory} KB` : null
+        memory: memory ? `${memory} KB` : null,
       });
 
       setOutput(decodedOutput);
@@ -372,7 +404,7 @@ function Workspace() {
   // Mark problem as solved
   const markProblemAsSolved = async () => {
     const token = localStorage.getItem("token");
-    
+
     try {
       const response = await axios.patch(
         `https://codearena-backend-ffqp.onrender.com/api/problems/${problemId}/solve`,
@@ -383,27 +415,32 @@ function Workspace() {
           },
         }
       );
-      
+
       if (response.data.success) {
-        alert(`Problem marked as solved! Earned ${response.data.pointsAwarded} points.`);
+        alert(
+          `Problem marked as solved! Earned ${response.data.pointsAwarded} points.`
+        );
         navigate("/problemtable");
       }
     } catch (error) {
       console.error("Error marking problem as solved:", error);
-      alert(error.response?.data?.message || "Failed to mark the problem as solved.");
+      alert(
+        error.response?.data?.message || "Failed to mark the problem as solved."
+      );
     }
   };
-  
-  
-  
-  
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>{error}</div>;
   if (!details) return <div>Problem not found</div>;
 
   return (
-    <Split className="split-horizontal" direction="horizontal" sizes={[50, 50]} gutterSize={10}>
+    <Split
+      className="split-horizontal"
+      direction="horizontal"
+      sizes={[50, 50]}
+      gutterSize={10}
+    >
       <div className="workspace-panel">
         <ProblemDescription details={details} />
       </div>
